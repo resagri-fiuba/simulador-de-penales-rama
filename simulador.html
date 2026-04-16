@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador de Penales V6 - Rubber Hose Edition</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@800&family=Nunito:wght@600;800&display=swap');
+
+        :root {
+            --bg-color: #0F172A;
+            --panel-bg: #1E293B;
+            --border-color: #334155;
+            --accent-orange: #F97316;
+            --accent-blue: #0EA5E9;
+            --grass-dark: #14532D;
+            --grass-light: #166534;
+            --text-main: #F8FAFC;
+            --text-muted: #94A3B8;
+            --danger: #EF4444;
+            --success: #10B981;
+        }
+
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        h1,
+        h2,
+        h3 {
+            font-family: 'Montserrat', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+        }
+
+        h1 {
+            color: transparent;
+            background: linear-gradient(90deg, var(--accent-blue), var(--accent-orange));
+            -webkit-background-clip: text;
+            background-clip: text;
+            font-size: 2.5rem;
+            text-shadow: 0px 4px 20px rgba(255, 255, 255, 0.1);
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: var(--panel-bg);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--border-color);
+        }
+
+        .screen {
+            display: none;
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        .screen.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Controles */
+        .settings-bar {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            display: inline-block;
+            border: 1px solid var(--border-color);
+        }
+
+        input,
+        select {
+            font-family: 'Nunito', sans-serif;
+            font-weight: 600;
+            padding: 10px 15px;
+            margin: 5px;
+            background: #0F172A;
+            color: white;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            outline: none;
+            transition: border 0.2s;
+        }
+
+        input:focus,
+        select:focus {
+            border-color: var(--accent-blue);
+        }
+
+        button {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-orange), #C2410C);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            cursor: pointer;
+            margin-top: 20px;
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            box-shadow: 0 4px 15px rgba(249, 115, 22, 0.4);
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 8px 25px rgba(249, 115, 22, 0.6);
+        }
+
+        .teams-container {
+            display: flex;
+            gap: 30px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .team-setup {
+            background: rgba(255, 255, 255, 0.03);
+            padding: 25px;
+            border-radius: 15px;
+            flex: 1;
+            min-width: 320px;
+            border: 1px solid var(--border-color);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .team-setup::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+        }
+
+        #team1-box::before {
+            background: var(--accent-blue);
+        }
+
+        #team2-box::before {
+            background: var(--accent-orange);
+        }
+
+        /* Nuevo fondo de Canvas para el estilo B&W Rubber Hose */
+        .avatar-box {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+        }
+
+        .avatar-controls {
+            flex: 1;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        .avatar-preview {
+            width: 100px;
+            height: 100px;
+            background: radial-gradient(circle, #F8FAFC 0%, #E2E8F0 100%);
+            border-radius: 15px;
+            border: 2px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .avatar-preview svg {
+            width: 90%;
+            height: 90%;
+            filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1));
+        }
+
+        .error {
+            color: var(--danger);
+            font-weight: 800;
+            margin-top: 10px;
+            display: none;
+            background: rgba(239, 68, 68, 0.1);
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        /* Cancha y Grilla */
+        #stadium {
+            background: repeating-linear-gradient(0deg, var(--grass-dark), var(--grass-dark) 40px, var(--grass-light) 40px, var(--grass-light) 80px);
+            padding: 50px;
+            border-radius: 20px 20px 0 0;
+            border: 8px solid white;
+            border-bottom: 0;
+            margin: 20px auto;
+            display: inline-block;
+            position: relative;
+            box-shadow: inset 0 20px 50px rgba(0, 0, 0, 0.5);
+        }
+
+        #stadium::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: linear-gradient(rgba(255, 255, 255, 0.2) 2px, transparent 2px), linear-gradient(90deg, rgba(255, 255, 255, 0.2) 2px, transparent 2px);
+            background-size: 20px 20px;
+            pointer-events: none;
+        }
+
+        .grid {
+            display: grid;
+            gap: 8px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .cell {
+            width: 100px;
+            height: 80px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 3px dashed rgba(255, 255, 255, 0.5);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            cursor: pointer;
+            backdrop-filter: blur(2px);
+            transition: all 0.2s;
+        }
+
+        .cell:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-style: solid;
+            transform: scale(1.05);
+        }
+
+        .cell.disabled {
+            pointer-events: none;
+            opacity: 0.9;
+        }
+
+        .cell.clue {
+            background: rgba(239, 68, 68, 0.3);
+            border-color: var(--danger);
+        }
+
+        @keyframes popIn {
+            0% {
+                transform: scale(0) rotate(-180deg);
+                opacity: 0;
+            }
+
+            80% {
+                transform: scale(1.2) rotate(10deg);
+            }
+
+            100% {
+                transform: scale(1) rotate(0deg);
+                opacity: 1;
+            }
+        }
+
+        .ball-icon {
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        .glove-icon {
+            animation: popIn 0.4s ease-out forwards;
+            font-size: 50px;
+            position: absolute;
+            z-index: 10;
+        }
+
+        /* Marcador */
+        .scoreboard {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 15px 30px;
+            border-radius: 15px;
+            border: 1px solid var(--border-color);
+            font-size: 1.5rem;
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 800;
+            margin-bottom: 20px;
+        }
+
+        .score-t1 {
+            color: var(--accent-blue);
+            text-shadow: 0 0 10px rgba(14, 165, 233, 0.5);
+        }
+
+        .score-t2 {
+            color: var(--accent-orange);
+            text-shadow: 0 0 10px rgba(249, 115, 22, 0.5);
+        }
+
+        #turn-msg {
+            font-size: 1.2rem;
+            line-height: 1.6;
+            margin: 20px 0;
+            min-height: 80px;
+        }
+
+        .highlight-text {
+            color: #FCD34D;
+            font-weight: 800;
+            font-size: 1.4rem;
+        }
+
+        .mini-avatar {
+            width: 50px;
+            height: 50px;
+            display: inline-block;
+            vertical-align: middle;
+            margin: 0 10px;
+            background: #F8FAFC;
+            border-radius: 50%;
+            border: 2px solid white;
+            padding: 5px;
+        }
+
+        @keyframes shake {
+            0% {
+                transform: translate(1px, 1px) rotate(0deg);
+            }
+
+            10% {
+                transform: translate(-1px, -2px) rotate(-1deg);
+            }
+
+            20% {
+                transform: translate(-3px, 0px) rotate(1deg);
+            }
+
+            30% {
+                transform: translate(3px, 2px) rotate(0deg);
+            }
+
+            40% {
+                transform: translate(1px, -1px) rotate(1deg);
+            }
+
+            50% {
+                transform: translate(-1px, 2px) rotate(-1deg);
+            }
+
+            60% {
+                transform: translate(-3px, 1px) rotate(0deg);
+            }
+
+            70% {
+                transform: translate(3px, 1px) rotate(-1deg);
+            }
+
+            80% {
+                transform: translate(-1px, -1px) rotate(1deg);
+            }
+
+            90% {
+                transform: translate(1px, 2px) rotate(0deg);
+            }
+
+            100% {
+                transform: translate(1px, -2px) rotate(-1deg);
+            }
+        }
+
+        .shake {
+            animation: shake 0.5s cubic-bezier(.36, .07, .19, .97) both;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container" id="main-container">
+        <div id="screen-setup" class="screen active">
+            <h1>⚽ Simulador de Penales 🧤</h1>
+
+            <div class="settings-bar">
+                Modo:
+                <select id="game-mode" onchange="toggleOnlineMode()">
+                    <option value="1v1">🧍 1 VS 1 (Local) 🧍</option>
+                    <option value="1vpc">🧍 1 VS PC 💻</option>
+                    <option value="online-create" style="background:#1E3A8A;">🌐 Online: Crear Partida (Host)</option>
+                    <option value="online-join" style="background:#1E3A8A;">🌐 Online: Unirse (Guest)</option>
+                </select>
+            </div>
+
+            <div id="online-setup"
+                style="display: none; background: rgba(14, 165, 233, 0.1); padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid var(--accent-blue);">
+                <div id="online-create-box">
+                    <p style="margin:5px 0;">Tu ID de partida es: <br><strong id="peer-id-display"
+                            style="font-size: 1.5rem; color: var(--accent-orange); user-select: all; letter-spacing: 2px;">Conectando...</strong>
+                    </p>
+                    <p style="font-size:0.9rem; color: var(--text-muted); margin:5px 0;">Copia este ID y envíaselo a tu
+                        amigo para que se una.</p>
+                </div>
+                <div id="online-join-box" style="display:none;">
+                    <p style="margin:5px 0;">Ingresa la ID de la partida de tu amigo:</p>
+                    <input type="text" id="join-id-input" placeholder="Ej: a1b2c3d4"
+                        style="text-align:center; font-size: 1.2rem; width: 200px;">
+                    <button type="button" onclick="joinPeerGame()"
+                        style="padding: 10px 20px; font-size: 1rem; margin-top: 5px; background: var(--accent-blue);">Conectar</button>
+                    <p id="join-status" style="margin-top: 10px; font-weight: bold;"></p>
+                </div>
+                <p id="online-connection-status"
+                    style="color: var(--success); font-weight:bolder; display:none; margin-top:15px;">✅ CONECTADOS.
+                    ¡Preparen sus equipos!</p>
+            </div>
+
+            <p style="color: var(--text-muted); font-size: 1.1rem; margin-bottom: 5px;">Distribuye exactamente 10 puntos
+                por equipo.</p>
+            <p style="color: var(--accent-blue); font-size: 0.8rem; margin-top: 0;">Secreto: Asigna 10 al pateador para
+                convocar a D10S.</p>
+
+            <div class="teams-container">
+                <div class="team-setup" id="team1-box">
+                    <h3 style="color: var(--accent-blue);"><input type="text" id="t1-team-name" value="EQUIPO 1"
+                            style="background:transparent; border:none; color:inherit; font-size:inherit; font-family:inherit; text-transform:uppercase; text-align:center; font-weight:800; width:100%; outline:none; border-bottom:1px dashed var(--accent-blue); margin:0; padding:0;">
+                    </h3>
+                    <button type="button" onclick="randomizePoints('t1')"
+                        style="padding: 5px 10px; font-size: 0.8rem; margin: -10px 0 15px 0; background: #334155; box-shadow:none;">🎲
+                        Asignar Puntos Aleatorios</button><br>
+                    Pat: <input type="text" id="t1-pat-name" value="Jugador 1" style="width:100px;">
+                    Pts: <input type="number" id="t1-pat-pts" min="0" max="10" value="5"
+                        oninput="updatePoints('t1', 'pat')"><br>
+                    Arq: <input type="text" id="t1-arq-name" value="Golero 1" style="width:100px;">
+                    Pts: <input type="number" id="t1-arq-pts" min="0" max="10" value="5"
+                        oninput="updatePoints('t1', 'arq')">
+
+                    <div class="avatar-box">
+                        <div class="avatar-controls" id="t1-controls">
+                            Tipo: <select id="t1-gen" onchange="updateAvatar('t1')">
+                                <option value="Hombre">Hombre</option>
+                                <option value="Mujer">Mujer</option>
+                                <option value="Alien">Alien</option>
+                            </select><br>
+                            Base: <input type="color" id="t1-cam-base" value="#60A5FA" onchange="updateAvatar('t1')"
+                                style="padding:0; width:30px; height:30px; border-radius:50%; vertical-align:middle; cursor:pointer;">
+                            Rayas: <input type="color" id="t1-cam-stripe" value="#1E3A8A" onchange="updateAvatar('t1')"
+                                style="padding:0; width:30px; height:30px; border-radius:50%; vertical-align:middle; cursor:pointer;"><br>
+                            Pelo: <select id="t1-pel" onchange="updateAvatar('t1')">
+                                <option value="Corto">Corto</option>
+                                <option value="Largo">Largo</option>
+                                <option value="Calvo">Calvo</option>
+                                <option value="Gorra">Gorra</option>
+                            </select>
+                        </div>
+                        <div class="avatar-preview" id="preview-t1"></div>
+                    </div>
+                    <div id="err-t1" class="error">¡Los puntos deben sumar 10!</div>
+                </div>
+
+                <div class="team-setup" id="team2-box">
+                    <h3 style="color: var(--accent-orange);"><input type="text" id="t2-team-name" value="EQUIPO 2"
+                            style="background:transparent; border:none; color:inherit; font-size:inherit; font-family:inherit; text-transform:uppercase; text-align:center; font-weight:800; width:100%; outline:none; border-bottom:1px dashed var(--accent-orange); margin:0; padding:0;">
+                    </h3>
+                    <button type="button" onclick="randomizePoints('t2')"
+                        style="padding: 5px 10px; font-size: 0.8rem; margin: -10px 0 15px 0; background: #334155; box-shadow:none;">🎲
+                        Asignar Puntos Aleatorios</button><br>
+                    Pat: <input type="text" id="t2-pat-name" value="Jugador 2" style="width:100px;">
+                    Pts: <input type="number" id="t2-pat-pts" min="0" max="10" value="5"
+                        oninput="updatePoints('t2', 'pat')"><br>
+                    Arq: <input type="text" id="t2-arq-name" value="Golero 2" style="width:100px;">
+                    Pts: <input type="number" id="t2-arq-pts" min="0" max="10" value="5"
+                        oninput="updatePoints('t2', 'arq')">
+
+                    <div class="avatar-box">
+                        <div class="avatar-controls" id="t2-controls">
+                            Tipo: <select id="t2-gen" onchange="updateAvatar('t2')">
+                                <option value="Hombre">Hombre</option>
+                                <option value="Mujer">Mujer</option>
+                                <option value="Alien">Alien</option>
+                            </select><br>
+                            Base: <input type="color" id="t2-cam-base" value="#F97316" onchange="updateAvatar('t2')"
+                                style="padding:0; width:30px; height:30px; border-radius:50%; vertical-align:middle; cursor:pointer;">
+                            Rayas: <input type="color" id="t2-cam-stripe" value="#9A3412" onchange="updateAvatar('t2')"
+                                style="padding:0; width:30px; height:30px; border-radius:50%; vertical-align:middle; cursor:pointer;"><br>
+                            Pelo: <select id="t2-pel" onchange="updateAvatar('t2')">
+                                <option value="Corto">Corto</option>
+                                <option value="Largo">Largo</option>
+                                <option value="Calvo">Calvo</option>
+                                <option value="Gorra">Gorra</option>
+                            </select>
+                        </div>
+                        <div class="avatar-preview" id="preview-t2"></div>
+                    </div>
+                    <div id="err-t2" class="error">¡Los puntos deben sumar 10!</div>
+                </div>
+            </div>
+
+            <button onclick="startGame()">¡Pitar Inicio del Partido!</button>
+        </div>
+
+        <div id="screen-game" class="screen">
+            <div class="scoreboard">
+                <div class="score-t1"><span id="t1-display-name">EQ1</span>: <span id="score-t1-val">0</span></div>
+                <div id="round-display" style="color:white; font-size: 1.2rem;">RONDA 1</div>
+                <div class="score-t2"><span id="t2-display-name">EQ2</span>: <span id="score-t2-val">0</span></div>
+            </div>
+            <div id="turn-msg"></div>
+            <div id="stadium">
+                <div id="goal-grid" class="grid"></div>
+            </div>
+            <div id="action-area" style="margin-top:20px;"></div>
+        </div>
+
+        <div id="screen-transition" class="screen">
+            <div class="container" style="background: var(--bg-color); margin-top: 50px;">
+                <h2 style="color: var(--accent-orange); font-size: 3rem;">⚠️ CAMBIO DE TURNO ⚠️</h2>
+                <p id="trans-text" style="font-size: 1.5rem; color: var(--text-muted);">Pasa el dispositivo al ARQUERO.
+                </p>
+                <p style="color: var(--danger); font-size: 1.2rem;">¡No mires la pantalla del rival!</p>
+                <button onclick="resumeTurn()">ESTOY LISTO, MOSTRAR ARCO</button>
+            </div>
+        </div>
+
+        <div id="screen-end" class="screen">
+            <h1 style="font-size: 4rem;">🏆 PARTIDO TERMINADO 🏆</h1>
+            <div id="final-result-text" style="font-size: 2rem; margin: 40px 0; font-weight: bold;"></div>
+            <button onclick="location.reload()">Jugar la Revancha</button>
+        </div>
+    </div>
+
+    <script>
+        let peer = null;
+        let p2pConn = null;
+        let isHost = false;
+        let remoteSetupDone = false; // Add for tracking game start
+
+        let localSetupData = null;
+        let remoteSetupData = null;
+
+        function toggleOnlineMode() {
+            let mode = document.getElementById('game-mode').value;
+            let setupBox = document.getElementById('online-setup');
+            let createBox = document.getElementById('online-create-box');
+            let joinBox = document.getElementById('online-join-box');
+            let team2Box = document.getElementById('team2-box');
+
+            if (mode === 'online-create') {
+                setupBox.style.display = 'block';
+                createBox.style.display = 'block';
+                joinBox.style.display = 'none';
+                team2Box.style.display = 'none';
+                isHost = true;
+                if (!peer) initPeer();
+            } else if (mode === 'online-join') {
+                setupBox.style.display = 'block';
+                createBox.style.display = 'none';
+                joinBox.style.display = 'block';
+                team2Box.style.display = 'none';
+                isHost = false;
+                if (!peer) initPeer();
+            } else {
+                setupBox.style.display = 'none';
+                team2Box.style.display = 'block';
+                if (p2pConn) { p2pConn.close(); p2pConn = null; }
+            }
+        }
+
+        function initPeer() {
+            peer = new Peer();
+            peer.on('open', function (id) {
+                document.getElementById('peer-id-display').innerText = id;
+            });
+            peer.on('connection', function (conn) {
+                if (isHost) {
+                    setupConnection(conn);
+                }
+            });
+        }
+
+        function joinPeerGame() {
+            if (!peer) return;
+            let targetId = document.getElementById('join-id-input').value.trim();
+            if (!targetId) return;
+            document.getElementById('join-status').innerText = "Conectando...";
+            let conn = peer.connect(targetId);
+            setupConnection(conn);
+        }
+
+        function setupConnection(conn) {
+            p2pConn = conn;
+            p2pConn.on('open', () => {
+                document.getElementById('online-connection-status').style.display = 'block';
+                if (!isHost) {
+                    document.getElementById('join-status').innerText = "¡Conectado!";
+                    document.getElementById('online-join-box').style.display = 'none';
+                }
+            });
+            p2pConn.on('data', (data) => {
+                handleNetworkData(data);
+            });
+            p2pConn.on('close', () => {
+                alert("Conexión perdida con el rival");
+            });
+        }
+
+        function handleNetworkData(payload) {
+            if (payload.type === 'SETUP_READY') {
+                remoteSetupData = payload.data;
+                if (localSetupData) empezarOnline();
+            } else if (payload.type === 'ACTION_PATEAR') {
+                pelotaPos = payload.data;
+                faseTurno = "ATAJAR";
+                let arqueroDefensor = equipos[turnoEquipo === 0 ? 1 : 0].arquero;
+                document.getElementById('turn-msg').innerHTML = `<span class="highlight-text">¡El RIVAL ya PATEÓ!</span><br>Te toca atajar con ${arqueroDefensor.nombre}. ¡Elige una celda!`;
+                dibujarArco(true);
+            } else if (payload.type === 'ACTION_ATAJAR') {
+                atajadasPos = payload.data;
+                resolverPenal();
+            }
+        }
+
+        function empezarOnline() {
+            if (isHost) {
+                equipos[0] = localSetupData.team;
+                equipos[1] = remoteSetupData.team;
+                document.getElementById('t1-display-name').innerText = localSetupData.name.substring(0, 3);
+                document.getElementById('t2-display-name').innerText = remoteSetupData.name.substring(0, 3);
+            } else {
+                equipos[0] = remoteSetupData.team;
+                equipos[1] = localSetupData.team;
+                document.getElementById('t1-display-name').innerText = remoteSetupData.name.substring(0, 3);
+                document.getElementById('t2-display-name').innerText = localSetupData.name.substring(0, 3);
+            }
+            switchScreen(document.getElementById('screen-game'));
+            iniciarTurno();
+        }
+        function updatePoints(teamId, role) {
+            const patInput = document.getElementById(`${teamId}-pat-pts`);
+            const arqInput = document.getElementById(`${teamId}-arq-pts`);
+
+            let patVal = parseInt(patInput.value) || 0;
+            let arqVal = parseInt(arqInput.value) || 0;
+
+            if (role === 'pat') {
+                if (patVal > 10) patVal = 10;
+                if (patVal < 0) patVal = 0;
+                patInput.value = patVal;
+                arqInput.value = 10 - patVal;
+            } else {
+                if (arqVal > 10) arqVal = 10;
+                if (arqVal < 0) arqVal = 0;
+                arqInput.value = arqVal;
+                patInput.value = 10 - arqVal;
+            }
+
+            updateAvatar(teamId);
+        }
+
+        function randomizePoints(teamId) {
+            let pts = Math.floor(Math.random() * 11);
+            document.getElementById(`${teamId}-pat-pts`).value = pts;
+            updatePoints(teamId, 'pat');
+        }
+
+        // --- GENERADOR SVG: ESTILO VECTORIAL PLANO (BUSTOS) ---
+        function generateSVG(gen, camBase, camStripe, pel, isMessi) {
+            let svg = `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">`;
+
+            let bgCircle = (isMessi) ? "#38BDF8" : "#F59E0B";
+            svg += `<circle cx="50" cy="50" r="45" fill="${bgCircle}" />`;
+
+            let skin = (gen === "Alien") ? "#86EFAC" : "#FFE1C4";
+            let camColor = camBase;
+            let collarColor = camStripe;
+            if (isMessi) { camColor = "#1E293B"; collarColor = "#FCD34D"; }
+
+            let hairColor = "#334155";
+            if (pel === "Largo") hairColor = "#FCD34D";
+            if (isMessi) hairColor = "#3E2723";
+
+            // Base cuello
+            svg += `<rect x="42" y="65" width="16" height="15" fill="${skin}" />`;
+            svg += `<rect x="42" y="65" width="16" height="5" fill="#000" opacity="0.1" />`;
+
+            let stripePattern = `stripe_${camBase.replace('#', '')}_${camStripe.replace('#', '')}`;
+            svg += `<defs>
+                <pattern id="${stripePattern}" patternUnits="userSpaceOnUse" width="16" height="16" patternTransform="rotate(0)">
+                    <rect width="8" height="16" fill="${camColor}" />
+                    <rect x="8" width="8" height="16" fill="${collarColor}" />
+                </pattern>
+            </defs>`;
+
+            if (isMessi) {
+                svg += `<path d="M 25 95 C 25 70 40 70 50 70 C 60 70 75 70 75 95 Z" fill="${camColor}" />`;
+            } else {
+                svg += `<path d="M 25 95 C 25 70 40 70 50 70 C 60 70 75 70 75 95 Z" fill="url(#${stripePattern})" />`;
+            }
+            svg += `<path d="M 42 70 L 50 82 L 58 70 L 52 70 L 50 78 L 48 70 Z" fill="${collarColor}" />`;
+            svg += `<path d="M 46 65 L 54 65 L 50 74 Z" fill="${collarColor}" opacity="0.5" />`;
+
+            if (gen !== "Alien") {
+                svg += `<circle cx="30" cy="48" r="6" fill="${skin}" />`;
+                svg += `<circle cx="70" cy="48" r="6" fill="${skin}" />`;
+                svg += `<circle cx="29" cy="48" r="3" fill="#000" opacity="0.1" />`;
+                svg += `<circle cx="71" cy="48" r="3" fill="#000" opacity="0.1" />`;
+            }
+
+            if (gen === "Alien") {
+                svg += `<path d="M 30 35 C 30 15 70 15 70 35 C 70 60 62 68 50 68 C 38 68 30 60 30 35 Z" fill="${skin}" />`;
+            } else {
+                svg += `<rect x="30" y="25" width="40" height="42" rx="20" fill="${skin}" />`;
+            }
+
+            if (gen === "Alien") {
+                svg += `<circle cx="50" cy="22" r="3" fill="#000" opacity="0.15" />`;
+                svg += `<circle cx="42" cy="25" r="2" fill="#000" opacity="0.15" />`;
+                svg += `<circle cx="58" cy="28" r="2.5" fill="#000" opacity="0.15" />`;
+                svg += `<circle cx="45" cy="18" r="1.5" fill="#000" opacity="0.15" />`;
+                svg += `<ellipse cx="40" cy="42" rx="4.5" ry="7" fill="#1E293B" transform="rotate(15 40 42)" />`;
+                svg += `<ellipse cx="60" cy="42" rx="4.5" ry="7" fill="#1E293B" transform="rotate(-15 60 42)" />`;
+                svg += `<circle cx="41" cy="40" r="1.5" fill="#FFF" />`;
+                svg += `<circle cx="61" cy="40" r="1.5" fill="#FFF" />`;
+                svg += `<line x1="48" y1="52" x2="49" y2="52" stroke="#1E293B" stroke-width="1.5" stroke-linecap="round" />`;
+                svg += `<line x1="51" y1="52" x2="52" y2="52" stroke="#1E293B" stroke-width="1.5" stroke-linecap="round" />`;
+            } else {
+                let cW = 2.5;
+                svg += `<path d="M 38" fill="none" stroke="${hairColor}" stroke-width="${cW}" stroke-linecap="round" />`;
+                svg += `<path d="M 38 36 Q 41 33 44 36" fill="none" stroke="${hairColor}" stroke-width="${cW}" stroke-linecap="round" />`;
+                svg += `<path d="M 62 36 Q 59 33 56 36" fill="none" stroke="${hairColor}" stroke-width="${cW}" stroke-linecap="round" />`;
+                svg += `<ellipse cx="41" cy="43" rx="3.5" ry="5.5" fill="#1E293B" />`;
+                svg += `<ellipse cx="59" cy="43" rx="3.5" ry="5.5" fill="#1E293B" />`;
+                svg += `<circle cx="41.5" cy="41" r="1.5" fill="#FFF" />`;
+                svg += `<circle cx="59.5" cy="41" r="1.5" fill="#FFF" />`;
+                svg += `<path d="M 49 52 Q 50 53 51 52" fill="none" stroke="#000" opacity="0.15" stroke-width="2.5" stroke-linecap="round" />`;
+            }
+
+            svg += `<ellipse cx="34" cy="50" rx="3.5" ry="2.5" fill="#FDA4AF" />`;
+            svg += `<ellipse cx="66" cy="50" rx="3.5" ry="2.5" fill="#FDA4AF" />`;
+
+            svg += `<path d="M 42 56 L 58 56 C 58 64 42 64 42 56 Z" fill="#991B1B" />`;
+            svg += `<path d="M 42 56 L 58 56 C 57.5 58 42.5 58 42 56 Z" fill="#FFFFFF" />`;
+            svg += `<path d="M 46 60 C 46 56 54 56 54 60 C 54 62 46 62 46 60 Z" fill="#EF4444" />`;
+
+            if (pel === "Calvo") {
+                // Sin cabello
+            } else if (pel === "Gorra") {
+                svg += `<path d="M 23 35 Q 50 15 77 35 L 85 38 Q 60 30 23 35 Z" fill="${collarColor}" />`;
+                svg += `<path d="M 26 35 C 26 15 74 15 74 35 Z" fill="${camColor}" />`;
+                svg += `<circle cx="50" cy="18" r="3" fill="#FFF" />`;
+            } else if (pel === "Largo") {
+                svg += `<path d="M 26 38 C 25 15 75 15 74 38 Z" fill="${hairColor}" />`;
+                svg += `<path d="M 26 38 C 35 25 55 25 72 30 C 65 35 50 35 40 38 L 26 38 Z" fill="${hairColor}" />`;
+                svg += `<path d="M 26 38 L 20 65 C 35 60 30 45 28 40 Z" fill="${hairColor}" />`;
+                svg += `<path d="M 74 38 L 80 65 C 65 60 70 45 72 40 Z" fill="${hairColor}" />`;
+            } else {
+                svg += `<path d="M 27 35 C 25 10 75 10 73 35 Z" fill="${hairColor}" />`;
+                svg += `<path d="M 30 20 L 35 8 L 45 16 L 55 10 L 63 18 L 70 12 L 70 20 Z" fill="${hairColor}" />`;
+                svg += `<path d="M 32 35 L 35 25 L 42 32 L 48 24 L 55 30 L 62 25 L 68 35 Z" fill="${hairColor}" />`;
+            }
+
+            if (isMessi) {
+                svg += `<path d="M 27 35 C 25 10 75 10 73 35 Z" fill="${hairColor}" />`;
+                svg += `<path d="M 30 55 C 50 75 70 55 65 57 C 50 65 35 57 30 55 Z" fill="${hairColor}" />`;
+                svg += `<ellipse cx="50" cy="5" rx="15" ry="4" fill="none" stroke="#FBBF24" stroke-width="3" />`;
+            }
+
+            svg += `</svg>`;
+            return svg;
+        }
+
+        function updateAvatar(teamId) {
+            const pts = document.getElementById(`${teamId}-pat-pts`).value;
+            const isMessi = parseInt(pts) === 10;
+
+            const controls = document.getElementById(`${teamId}-controls`);
+            controls.style.opacity = isMessi ? "0.3" : "1";
+            controls.style.pointerEvents = isMessi ? "none" : "auto";
+
+            const gen = document.getElementById(`${teamId}-gen`).value;
+            const camBase = document.getElementById(`${teamId}-cam-base`).value;
+            const camStripe = document.getElementById(`${teamId}-cam-stripe`).value;
+            const pel = document.getElementById(`${teamId}-pel`).value;
+
+            const svgCode = generateSVG(gen, camBase, camStripe, pel, isMessi);
+            document.getElementById(`preview-${teamId}`).innerHTML = svgCode;
+            return svgCode;
+        }
+
+        window.onload = () => { updateAvatar('t1'); updateAvatar('t2'); };
+
+
+        // --- LÓGICA DEL JUEGO INTACTA ---
+        let equipos = [];
+        let rondaActual = 1;
+        let turnoEquipo = 0;
+        let esMuerteSubita = false;
+        let modoJuego = "1v1";
+        let arcoActual = { filas: 0, columnas: 3 };
+        let pelotaPos = [];
+        let atajadasPos = [];
+        let faseTurno = "PATEAR";
+
+        function switchScreen(screen) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            screen.classList.add('active');
+        }
+
+        function categorizar(pts, rol) {
+            if (rol === 'P') {
+                if (pts <= 4) return { cat: "Malo", filas: 1 };
+                if (pts === 5) return { cat: "Normal", filas: 2 };
+                return { cat: "Bueno", filas: 3 };
+            } else {
+                if (pts <= 4) return { cat: "Malo", pistas: 0 };
+                if (pts === 5) return { cat: "Normal", pistas: 2 };
+                return { cat: "Bueno", pistas: 3 };
+            }
+        }
+
+        function startGame() {
+            modoJuego = document.getElementById('game-mode').value;
+            const p1p = parseInt(document.getElementById('t1-pat-pts').value);
+            const p1a = parseInt(document.getElementById('t1-arq-pts').value);
+            const p2p = parseInt(document.getElementById('t2-pat-pts').value);
+            const p2a = parseInt(document.getElementById('t2-arq-pts').value);
+
+            let valid = true;
+            if (p1p + p1a !== 10) { document.getElementById('err-t1').style.display = 'block'; valid = false; } else { document.getElementById('err-t1').style.display = 'none'; }
+            
+            if (!modoJuego.includes("online")) {
+                if (p2p + p2a !== 10) { document.getElementById('err-t2').style.display = 'block'; valid = false; } else { document.getElementById('err-t2').style.display = 'none'; }
+            }
+
+            if (!valid) return;
+
+            let n1 = p1p === 10 ? "D10S" : document.getElementById('t1-pat-name').value;
+            let n2 = p2p === 10 ? "D10S" : document.getElementById('t2-pat-name').value;
+
+            if (modoJuego === "1vpc") {
+                document.getElementById('t2-pat-name').value = "PC (Pateador)";
+                document.getElementById('t2-arq-name').value = "PC (Arquero)";
+                n2 = p2p === 10 ? "Mecha-D10S" : "PC (Pateador)";
+            }
+
+            let t1Config = { pateador: { nombre: n1, pts: p1p, esMessi: (p1p === 10), ...categorizar(p1p, 'P') }, arquero: { nombre: document.getElementById('t1-arq-name').value, pts: p1a, ...categorizar(p1a, 'A') }, svg: updateAvatar('t1'), goles: 0 };
+            let t2Config = { pateador: { nombre: n2, pts: p2p, esMessi: (p2p === 10), ...categorizar(p2p, 'P') }, arquero: { nombre: document.getElementById('t2-arq-name').value, pts: p2a, ...categorizar(p2a, 'A') }, svg: updateAvatar('t2'), goles: 0 };
+
+            if (modoJuego.includes("online")) {
+                if (!p2pConn) { alert("¡Aún no estás conectado con tu rival online!"); return; }
+                localSetupData = { team: t1Config, name: document.getElementById('t1-team-name').value };
+                p2pConn.send({ type: 'SETUP_READY', data: localSetupData });
+                
+                if (remoteSetupData) {
+                    empezarOnline();
+                } else {
+                    document.getElementById('screen-setup').innerHTML = `<br><br><h2 style="color:var(--accent-orange)">Esperando a que el rival arme su equipo...</h2>`;
+                }
+                return;
+            }
+
+            equipos = [t1Config, t2Config];
+            document.getElementById('t1-display-name').innerText = document.getElementById('t1-team-name').value.substring(0, 3);
+            document.getElementById('t2-display-name').innerText = document.getElementById('t2-team-name').value.substring(0, 3);
+            switchScreen(document.getElementById('screen-game'));
+            iniciarTurno();
+        }
+
+        function updateScoreboard() {
+            document.getElementById('score-t1-val').innerText = equipos[0].goles;
+            document.getElementById('score-t2-val').innerText = equipos[1].goles;
+            document.getElementById('round-display').innerHTML = esMuerteSubita ? `<span style="color:var(--danger)">☠️ MUERTE SÚBITA ☠️<br>(${rondaActual})</span>` : `RONDA ${rondaActual} / 3`;
+        }
+
+        function iniciarTurno() {
+            updateScoreboard();
+            faseTurno = "PATEAR";
+            document.getElementById('action-area').innerHTML = "";
+            pelotaPos = [];
+            atajadasPos = [];
+            document.getElementById('main-container').classList.remove('shake');
+
+            let pateador = equipos[turnoEquipo].pateador;
+            arcoActual.filas = pateador.filas;
+
+            if (modoJuego.includes("online")) {
+                let isMyTurnToKick = (turnoEquipo === 0 && isHost) || (turnoEquipo === 1 && !isHost);
+                if (isMyTurnToKick) {
+                    let msg = `<div class="mini-avatar">${equipos[turnoEquipo].svg}</div> Eres PATEADOR: <span class="highlight-text">${pateador.nombre}</span><br>`;
+                    msg += `Toca la red para patear (el arquero rival está esperando)`;
+                    document.getElementById('turn-msg').innerHTML = msg;
+                    dibujarArco();
+                } else {
+                    let aqueroEq = equipos[turnoEquipo === 0 ? 1 : 0].arquero;
+                    let msg = `<div class="mini-avatar">${equipos[turnoEquipo === 0 ? 1 : 0].svg}</div> Eres ARQUERO: <span class="highlight-text">${aqueroEq.nombre}</span><br>`;
+                    msg += `<span style="color:var(--accent-orange)">Esperando a que el rival patee...</span>`;
+                    document.getElementById('turn-msg').innerHTML = msg;
+                    dibujarArco(false, true); // disabled grid until it's time to def
+                }
+                return;
+            }
+
+            if (modoJuego === "1vpc" && turnoEquipo === 1) {
+                document.getElementById('turn-msg').innerHTML = `<span class="highlight-text">TURNO DE LA PC</span><br>Calculando vector de tiro... 💻`;
+                dibujarArco(false, true);
+
+                setTimeout(() => {
+                    let tirosPC = pateador.esMessi ? 2 : 1;
+                    for (let i = 0; i < tirosPC; i++) { pelotaPos.push({ f: Math.floor(Math.random() * arcoActual.filas), c: Math.floor(Math.random() * 3) }); }
+
+                    faseTurno = "ATAJAR";
+                    let arqueroDefensor = equipos[0].arquero;
+                    let msjExtra = pateador.esMessi ? "<br><span style='color:var(--accent-blue)'>¡CUIDADO! La PC usó a D10S. Tienes 2 intentos.</span>" : "";
+                    document.getElementById('turn-msg').innerHTML = `<div class="mini-avatar">${equipos[0].svg}</div> Ataja: <span class="highlight-text">${arqueroDefensor.nombre}</span><br>¡La PC ya pateó! Elige dónde saltar.${msjExtra}`;
+                    dibujarArco(true);
+                }, 1200);
+
+            } else {
+                let msg = `<div class="mini-avatar">${equipos[turnoEquipo].svg}</div> Patea: <span class="highlight-text">${pateador.nombre}</span> (${pateador.cat})<br>`;
+                if (pateador.esMessi) msg += `<span style="color:var(--accent-blue); font-weight:bold;">¡MODO D10S! Dispara a 2 lugares a la vez.</span>`;
+                else msg += `Toca la red para patear`;
+
+                document.getElementById('turn-msg').innerHTML = msg;
+                dibujarArco();
+            }
+        }
+
+        function dibujarArco(revelarPistas = false, deshabilitar = false) {
+            const grid = document.getElementById('goal-grid');
+            grid.innerHTML = '';
+            grid.style.gridTemplateColumns = `repeat(3, 1fr)`;
+
+            let pistas = revelarPistas ? generarPistasVAR(equipos[turnoEquipo === 0 ? 1 : 0].arquero.pistas) : [];
+
+            for (let f = 0; f < arcoActual.filas; f++) {
+                for (let c = 0; c < 3; c++) {
+                    let cell = document.createElement('div');
+                    cell.className = 'cell';
+                    if (deshabilitar) cell.classList.add('disabled');
+
+                    let esPista = pistas.some(p => p.f === f && p.c === c);
+                    if (esPista) {
+                        cell.classList.add('clue', 'disabled');
+                        cell.innerHTML = "❌";
+                    }
+
+                    if (!deshabilitar && !esPista) cell.onclick = () => procesarClic(f, c);
+                    cell.id = `cell-${f}-${c}`;
+                    grid.appendChild(cell);
+                }
+            }
+        }
+
+        function procesarClic(f, c) {
+            let pateador = equipos[turnoEquipo].pateador;
+
+            if (faseTurno === "PATEAR") {
+                let celda = document.getElementById(`cell-${f}-${c}`);
+                celda.innerHTML = "<div class='ball-icon'>⚽</div>";
+                celda.classList.add('disabled');
+                pelotaPos.push({ f, c });
+
+                let maxTiros = pateador.esMessi ? 2 : 1;
+                if (pelotaPos.length < maxTiros) return;
+
+                if (modoJuego === "1vpc") {
+                    faseTurno = "ATAJAR";
+                    document.getElementById('turn-msg').innerHTML = `<span class="highlight-text">La PC está intentando atajar...</span>`;
+                    dibujarArco(false, true);
+
+                    setTimeout(() => {
+                        let pistas = generarPistasVAR(equipos[1].arquero.pistas);
+                        let maxAtajadas = pateador.esMessi ? 2 : 1;
+
+                        for (let i = 0; i < maxAtajadas; i++) {
+                            let pc_f, pc_c;
+                            do {
+                                pc_f = Math.floor(Math.random() * arcoActual.filas);
+                                pc_c = Math.floor(Math.random() * 3);
+                            } while (pistas.some(p => p.f === pc_f && p.c === pc_c) || atajadasPos.some(a => a.f === pc_f && a.c === pc_c));
+                            atajadasPos.push({ f: pc_f, c: pc_c });
+                        }
+                        resolverPenal();
+                    }, 1500);
+
+                } else if (modoJuego.includes("online")) {
+                    faseTurno = "ESPERANDO_ATAJADA";
+                    document.getElementById('turn-msg').innerHTML = `<span style="color:var(--success)">¡Disparo enviado! Esperando a que el arquero rival se tire...</span>`;
+                    p2pConn.send({ type: 'ACTION_PATEAR', data: pelotaPos });
+                } else {
+                    faseTurno = "TRANSICION";
+                    setTimeout(() => {
+                        document.getElementById('trans-text').innerText = `Pasa el dispositivo al ARQUERO del Equipo ${turnoEquipo === 0 ? 2 : 1}.`;
+                        switchScreen(document.getElementById('screen-transition'));
+                    }, 800);
+                }
+
+            } else if (faseTurno === "ATAJAR") {
+                let celda = document.getElementById(`cell-${f}-${c}`);
+                celda.innerHTML += "<div class='glove-icon'>🧤</div>";
+                celda.classList.add('disabled');
+                atajadasPos.push({ f, c });
+
+                let maxAtajadas = pateador.esMessi ? 2 : 1;
+                if (atajadasPos.length < maxAtajadas) return;
+
+                dibujarArco(false, true);
+                if (modoJuego.includes("online")) {
+                    p2pConn.send({ type: 'ACTION_ATAJAR', data: atajadasPos });
+                }
+                resolverPenal();
+            }
+        }
+
+        function resumeTurn() {
+            switchScreen(document.getElementById('screen-game'));
+            faseTurno = "ATAJAR";
+            let arqueroDefensor = equipos[turnoEquipo === 0 ? 1 : 0].arquero;
+            let idEqDef = turnoEquipo === 0 ? 1 : 0;
+            let pateador = equipos[turnoEquipo].pateador;
+
+            let msjExtra = pateador.esMessi ? "<br><span style='color:var(--accent-blue); font-weight:bold;'>¡CUIDADO MODO D10S! Tienes 2 intentos para atajar.</span>" : "";
+            document.getElementById('turn-msg').innerHTML = `<div class="mini-avatar">${equipos[idEqDef].svg}</div> Ataja: <span class="highlight-text">${arqueroDefensor.nombre}</span> (${arqueroDefensor.cat})<br>¡El VAR marcó zonas muertas!${msjExtra}`;
+            dibujarArco(true);
+        }
+
+        function generarPistasVAR(cantidad_pistas) {
+            let pistas = [];
+            if (cantidad_pistas <= 0) return pistas;
+            let pistas_generadas = 0;
+
+            while (pistas_generadas < cantidad_pistas) {
+                let f_rand = Math.floor(Math.random() * arcoActual.filas);
+                let c_rand = Math.floor(Math.random() * 3);
+
+                if (pelotaPos.some(p => p.f === f_rand && p.c === c_rand)) continue;
+                if (!pistas.some(p => p.f === f_rand && p.c === c_rand)) {
+                    pistas.push({ f: f_rand, c: c_rand });
+                    pistas_generadas++;
+                }
+            }
+            return pistas;
+        }
+
+        function resolverPenal() {
+            let arqueroDefensor = equipos[turnoEquipo === 0 ? 1 : 0].arquero;
+            let pateador = equipos[turnoEquipo].pateador;
+
+            pelotaPos.forEach(p => {
+                let c = document.getElementById(`cell-${p.f}-${p.c}`);
+                if (!c.innerHTML.includes("⚽")) c.innerHTML += "<div class='ball-icon'>⚽</div>";
+            });
+
+            atajadasPos.forEach(a => {
+                let c = document.getElementById(`cell-${a.f}-${a.c}`);
+                if (!c.innerHTML.includes("🧤")) c.innerHTML += "<div class='glove-icon'>🧤</div>";
+            });
+
+            let golesTurno = 0;
+            pelotaPos.forEach(pelota => {
+                if (!atajadasPos.some(atajada => atajada.f === pelota.f && atajada.c === pelota.c)) golesTurno++;
+            });
+
+            equipos[turnoEquipo].goles += golesTurno;
+            let msg = "", color = "";
+
+            if (pateador.esMessi) {
+                if (golesTurno === 0) { msg = `¡LEYENDA! ¡${arqueroDefensor.nombre} LE ATAJÓ TODO A D10S!`; color = "var(--success)"; }
+                else if (golesTurno === 1) { msg = `¡Mitad atajada, mitad golazo inevitable! (1 Gol)`; color = "var(--accent-orange)"; document.getElementById('main-container').classList.add('shake'); }
+                else { msg = `¡GOLAZO DOBLE! ¡ERA INEVITABLE! (2 Goles)`; color = "var(--danger)"; document.getElementById('main-container').classList.add('shake'); }
+            } else {
+                if (golesTurno === 0) { msg = `¡ENORME ATAJADA DE ${arqueroDefensor.nombre}!`; color = "var(--success)"; }
+                else { msg = `¡GOLAZO DE ${pateador.nombre}!`; color = "var(--danger)"; document.getElementById('main-container').classList.add('shake'); }
+            }
+
+            document.getElementById('turn-msg').innerHTML = `<h2 style="color:${color}; font-size:1.8rem; text-shadow: 0 0 15px ${color};">${msg}</h2>`;
+            updateScoreboard();
+            document.getElementById('action-area').innerHTML = `<button onclick="siguienteTurno()">Siguiente Turno ➔</button>`;
+        }
+
+        function siguienteTurno() {
+            if (turnoEquipo === 0) { turnoEquipo = 1; iniciarTurno(); }
+            else { turnoEquipo = 0; evaluarFinPartido(); }
+        }
+
+        function evaluarFinPartido() {
+            if (!esMuerteSubita) {
+                if (rondaActual < 3) { rondaActual++; iniciarTurno(); }
+                else { if (equipos[0].goles !== equipos[1].goles) mostrarGanador(); else { esMuerteSubita = true; rondaActual++; iniciarTurno(); } }
+            } else {
+                if (equipos[0].goles !== equipos[1].goles) mostrarGanador(); else { rondaActual++; iniciarTurno(); }
+            }
+        }
+
+        function mostrarGanador() {
+            switchScreen(document.getElementById('screen-end'));
+            let txt = document.getElementById('final-result-text');
+            let modo = esMuerteSubita ? "<br><span style='color:var(--danger); font-size:1.2rem;'>(Definido en Muerte Súbita)</span>" : "";
+            let winColor = equipos[0].goles > equipos[1].goles ? "var(--accent-blue)" : "var(--accent-orange)";
+            let textWin = equipos[0].goles > equipos[1].goles ? "¡GANA EL EQUIPO 1!" : "¡GANA EL EQUIPO 2!";
+            let res = equipos[0].goles > equipos[1].goles ? `${equipos[0].goles} - ${equipos[1].goles}` : `${equipos[1].goles} - ${equipos[0].goles}`;
+
+            txt.innerHTML = `<span style="color:${winColor}; text-shadow: 0 0 20px ${winColor};">${textWin}</span><br><br><span style="font-size:3rem;">${res}</span>${modo}`;
+        }
+    </script>
+</body>
+
+</html>
